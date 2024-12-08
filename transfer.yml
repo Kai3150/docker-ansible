@@ -1,0 +1,35 @@
+---
+- name: Deploy files to remote servers with conditional backup and confirmation
+  hosts: all
+  become: true
+  vars_files:
+    - files_to_transfer.yml
+
+  vars:
+    backup_dir: "/PF_NAS/UNYO/transfer_backups"
+
+  tasks:
+    # loopでinclude_tasksを呼び出すことで、ループ内でblockを使わずに済む
+    # include_tasksの中でitemを参照できるようにloop_controlでloop_varを指定
+    - name: Process each file distribution item
+      include_tasks: single.yml
+      loop: "{{ files_to_transfer }}"
+      loop_control:
+        loop_var: item
+
+
+    - name: Ask confirmation for new file distribution
+      pause:
+        prompt: "Host={{inventory_hostname}} ファイル{{item.dest}}が存在しません。新規配布しますか？(yes/no)"
+      register: new_file_confirm
+      with_items: "{{ new_distribution_items }}"
+
+    - name: Copy new file to remote server (new distribution)
+      copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        owner: "{{ item.owner | default('root') }}"
+        group: "{{ item.group | default('root') }}"
+        mode: "{{ item.mode }}"
+      when:
+        - new_file_confirm.user_input == 'yes'

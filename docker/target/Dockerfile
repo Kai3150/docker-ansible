@@ -1,20 +1,23 @@
-# Amazon EC2
-FROM amazonlinux:latest
+FROM ubuntu:22.04
 
-# yumでOpenSSｈサーバをインストールする
-RUN yum -y install openssh-server
+RUN apt-get update && apt-get install -y sudo openssh-server \
+    && rm -rf /var/lib/apt/lists/*
 
-# sshd起動時に公開鍵が必要なため、作成
-RUN ssh-keygen -f /etc/ssh/ssh_host_rsa_key -N '' -t rsa
-RUN ssh-keygen -f /etc/ssh/ssh_host_ecdsa_key -N '' -t ecdsa
+# SSHセットアップ
+RUN mkdir /var/run/sshd
 
-# rootでログインできるようにする
-RUN sed -ri 's/^#PermitEmptyPasswords no/PermitEmptyPasswords yes/' /etc/ssh/sshd_config
+# ansibleユーザ作成
+RUN useradd -m ansible && echo "ansible:ansible" | chpasswd \
+    && usermod -aG sudo ansible \
+    && echo "ansible ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
-# rootのパスワードを指定
-RUN echo "root:" | chpasswd
+# 公開鍵設定
+COPY authorized_keys /home/ansible/.ssh/authorized_keys
+RUN chown ansible:ansible /home/ansible/.ssh -R && chmod 700 /home/ansible/.ssh && chmod 600 /home/ansible/.ssh/authorized_keys
+
+# SSHサーバ設定：パスワード認証有効化
+RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
+RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 
 EXPOSE 22
-
-# sshdを起動
 CMD ["/usr/sbin/sshd", "-D"]
