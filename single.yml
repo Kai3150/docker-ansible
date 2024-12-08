@@ -38,34 +38,19 @@
 
     #############################
     # 配布先ファイルが無い場合(新規配布)
+    # 配布itemをnew_distribution_itemsに追加
+    # copy 処理はnew_distribution.ymlで実施
     #############################
-    - name: Task block for new file distribution
+    - name: Add item to new_distribution_items for new file distribution
+      set_fact:
+        new_distribution_items: "{{ new_distribution_items + [item] }}"
       when: dest_file_stat.stat.exists == false
-      block:
-      - name: Add to new_distribution_items if destination does not exist
-        set_fact:
-          new_distribution_items: "{{ new_distribution_items | default([]) + [item] }}"
-        when: dest_file_stat.stat.exists == false
 
-      - name: Ask confirmation for new file distribution
-        pause:
-          prompt: "Host={{inventory_hostname}} ファイル{{item.dest}}が存在しません。新規配布しますか？(yes/no)"
-        register: new_file_confirm
-        with_items: "{{ new_distribution_items }}"
-
-      - name: Copy new file to remote server (new distribution)
-        copy:
-          src: "{{ item.src }}"
-          dest: "{{ item.dest }}"
-          owner: "{{ item.owner | default('root') }}"
-          group: "{{ item.group | default('root') }}"
-          mode: "{{ item.mode }}"
-        when:
-          - new_file_confirm.user_input == 'yes'
 
 
     #############################
     # 配布先ファイルがある場合(上書き配布)
+    # copy 処理はoverwriting.ymlで実施
     #############################
     - name: Task block for overwriting existing file
       when:
@@ -91,18 +76,6 @@
             backup_file_path: "{{ backup_dir }}/{{ inventory_hostname }}_{{ item.dest | basename }}.bak_{{ lookup('pipe', 'date +%Y%m%d%H%M%S') }}"
 
 
-        - name: Add to overwrite_items if destination exists and files are different
-          set_fact:
-            overwrite_items: "{{ overwrite_items | default([]) + [item] }}"
-
-        #############################
-        # 🔍 デバッグコード
-        #############################
-        - name: 🔍Debug before file deference check
-          debug:
-            var: dest_file_stat
-          # when:
-          #   - dest_file_stat.stat.exists == true
 
         #############################
         # バックアップ取得 ※NAS保存
@@ -131,36 +104,19 @@
 
 
         #############################
-        # 上書き可否最終確認
+        # 配布itemをoverwrite_itemsに追加
+        # copy 処理はoverwriting.ymlで実施
         #############################
-        - name: Ask for confirmation before overwriting existing file
-          pause:
-            prompt: "Host={{inventory_hostname}} ファイル{{item.dest}}を上書きしますか？(yes/no)"
-          register: overwrite_confirm
-          with_items: "{{ overwrite_items }}"
+        - name: Add item to overwrite_items if destination exists and files differ
+          set_fact:
+            overwrite_items: "{{ overwrite_items + [item] }}"
           when: backup_file_stat_check.stat.exists == true
 
-
-        #############################
-        # ユーザ確認後ファイルコピー(上書き)
-        #############################
-        - name: Overwrite file on remote server
-          copy:
-            src: "{{ item.src }}"
-            dest: "{{ item.dest }}"
-            owner: "{{ item.owner | default('root') }}"
-            group: "{{ item.group | default('root') }}"
-            mode: "{{ item.mode }}"
-          when:
-            - backup_file_stat_check.stat.exists == true
-            - overwrite_confirm.user_input == 'yes'
-
-        #############################
-        # バックアップ場所通知
-        #############################
-        - name: Inform about the backup location
-          debug:
-            msg: "Backup of old file is saved in {{ backup_dir }}/ (Host={{inventory_hostname}}, File={{item.dest | basename}})"
-          when:
-            - backup_file_stat_check.stat.exists == true
-            - overwrite_confirm.user_input == 'yes'
+        # #############################
+        # # 🔍 デバッグコード
+        # #############################
+        # - name: 🔍Debug before file deference check
+        #   debug:
+        #     var: overwrite_items
+        #   # when:
+        #   #   - dest_file_stat.stat.exists == true
