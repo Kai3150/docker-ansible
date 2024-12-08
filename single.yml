@@ -1,9 +1,3 @@
-# single.yml
-# このファイルは、単一の item に対する処理を全てタスクとして記述
-# inventory_hostnameとitem.hostの一致チェックや
-# 差異チェック後のタスクスキップなどはすべてwhenで制御
-
-
 #############################
 # ホスト名がインベントリと一致するかチェック
 #############################
@@ -38,19 +32,25 @@
 
     #############################
     # 配布先ファイルが無い場合(新規配布)
-    # 配布itemをnew_distribution_itemsに追加
-    # copy 処理はnew_distribution.ymlで実施
     #############################
-    - name: Add item to new_distribution_items for new file distribution
-      set_fact:
-        new_distribution_items: "{{ new_distribution_items + [item] }}"
+    - name: Task block for new file distribution
       when: dest_file_stat.stat.exists == false
+      block:
+      - name: Add to new_distribution_items if destination does not exist
+        set_fact:
+          new_distribution_items: "{{ new_distribution_items | default([]) + [item] }}"
 
+      - name: Copy new file to remote server (new distribution)
+        copy:
+          src: "{{ item.src }}"
+          dest: "{{ item.dest }}"
+          owner: "{{ item.owner | default('root') }}"
+          group: "{{ item.group | default('root') }}"
+          mode: "{{ item.mode }}"
 
 
     #############################
     # 配布先ファイルがある場合(上書き配布)
-    # copy 処理はoverwriting.ymlで実施
     #############################
     - name: Task block for overwriting existing file
       when:
@@ -76,9 +76,11 @@
             backup_file_path: "{{ backup_dir }}/{{ inventory_hostname }}_{{ item.dest | basename }}.bak_{{ lookup('pipe', 'date +%Y%m%d%H%M%S') }}"
 
 
-
         #############################
         # バックアップ取得 ※NAS保存
+        #############################
+        #############################
+        # バックアップ①保存先ディレクトリ作成
         #############################
         - name: Ensure backup directory exists on remote NAS
           file:
@@ -87,9 +89,16 @@
             mode: '0755'
 
 
+        #############################
+        # バックアップ②既存ファイルをNASにコピー
+        #############################
         - name: Backup existing remote file to NAS before overwriting
           command: cp "{{ item.dest }}" "{{ backup_file_path }}"
 
+
+        #############################
+        # バックアップ③バックアップファイル存在確認
+        #############################
         - name: Verify backup file exists
           stat:
             path: "{{ backup_file_path }}"
@@ -104,19 +113,24 @@
 
 
         #############################
-        # 配布itemをoverwrite_itemsに追加
-        # copy 処理はoverwriting.ymlで実施
+        # ファイルコピー(上書き)
         #############################
-        - name: Add item to overwrite_items if destination exists and files differ
-          set_fact:
-            overwrite_items: "{{ overwrite_items + [item] }}"
-          when: backup_file_stat_check.stat.exists == true
+        - name: Overwrite file on remote server
+          copy:
+            src: "{{ item.src }}"
+            dest: "{{ item.dest }}"
+            owner: "{{ item.owner | default('root') }}"
+            group: "{{ item.group | default('root') }}"
+            mode: "{{ item.mode }}"
+          when:
+            - backup_file_stat_check.stat.exists == true
 
-        # #############################
-        # # 🔍 デバッグコード
-        # #############################
-        # - name: 🔍Debug before file deference check
-        #   debug:
-        #     var: overwrite_items
-        #   # when:
-        #   #   - dest_file_stat.stat.exists == true
+
+        #############################
+        # バックアップ場所通知
+        #############################
+        - name: Inform about the backup location
+          debug:
+            msg: "Backup of old file is saved in {{ backup_file_path }})"
+          when:
+            - backup_file_stat_check.stat.exists == true
