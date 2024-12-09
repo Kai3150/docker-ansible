@@ -77,9 +77,6 @@
 
 
         #############################
-        # バックアップ取得 ※NAS保存
-        #############################
-        #############################
         # バックアップ①保存先ディレクトリ作成
         #############################
         - name: Ensure backup directory exists on remote NAS
@@ -90,7 +87,7 @@
 
 
         #############################
-        # バックアップ②既存ファイルをNASにコピー
+        # バックアップ②取得※NAS保存
         #############################
         - name: Backup existing remote file to NAS before overwriting
           command: cp "{{ item.dest }}" "{{ backup_file_path }}"
