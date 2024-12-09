@@ -9,13 +9,11 @@
     backup_dir: "/PF_NAS/UNYO/transfer_backups"
 
   tasks:
-    # loopでinclude_tasksを呼び出すことで、ループ内でblockを使わずに済む
-    # include_tasksの中でitemを参照できるようにloop_controlでloop_varを指定
-
     - name: Initialize new_distribution_items and overwrite_items
       set_fact:
         new_distribution_items: []
         overwrite_items: []
+      delegate_to: localhost
       run_once: true
 
     - name: Process each file distribution item
@@ -28,13 +26,19 @@
     #############################
     # 新規配布処理
     #############################
+    - name: Show new_distribution_items
+      debug:
+        var: new_distribution_items
+      delegate_to: localhost
+      run_once: true
+      when: new_distribution_items|length > 0
+
     - name: Confirm new file distribution globally
       pause:
-        prompt: "【新規配布】ファイル {{ item.dest }} を配布しますか？(yes/no)"
+        prompt: "【新規配布】ファイル {{ new_distribution_items }} を配布しますか？(yes/no)"
       register: new_distribution_confirm_result
-      with_items: "{{ new_distribution_items }}"
-      loop_control:
-        loop_var: item
+      delegate_to: localhost
+      run_once: true
       when: new_distribution_items|length > 0
 
     - name: Distribute new files after global confirmation
@@ -52,29 +56,23 @@
         - new_distribution_confirm_result is defined
         - new_distribution_confirm_result.results[ansible_loop.index0].user_input == 'yes'
 
-    #############################
-    # 🔍 デバッグコード
-    #############################
-    - name: 🔍Debug before file deference check
-      debug:
-        var: item
-      # when:
-      #   - dest_file_stat.stat.exists == true
-      with_items: "{{ overwrite_items }}"
-      loop_control:
-        loop_var: item
-
 
     #############################
     # 上書き処理
     #############################
+    - name: Show overwrite_items
+      debug:
+        var: overwrite_items
+      delegate_to: localhost
+      run_once: true
+      when: overwrite_items|length > 0
+
     - name: Confirm overwriting files globally
       pause:
-        prompt: "【上書き配布】ファイル {{ item.dest }} を上書きしますか？(yes/no)"
+        prompt: "【上書き配布】ファイル {{ overwrite_itmes }} を上書きしますか？(yes/no)"
       register: overwrite_confirm_result
-      with_items: "{{ overwrite_items }}"
-      loop_control:
-        loop_var: item
+      delegate_to: localhost
+      run_once: true
       when: overwrite_items|length > 0
 
     - name: Overwrite files after global confirmation

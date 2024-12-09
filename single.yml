@@ -1,9 +1,3 @@
-# single.yml
-# このファイルは、単一の item に対する処理を全てタスクとして記述
-# inventory_hostnameとitem.hostの一致チェックや
-# 差異チェック後のタスクスキップなどはすべてwhenで制御
-
-
 #############################
 # ホスト名がインベントリと一致するかチェック
 #############################
@@ -111,12 +105,3 @@
           set_fact:
             overwrite_items: "{{ overwrite_items + [item] }}"
           when: backup_file_stat_check.stat.exists == true
-
-        # #############################
-        # # 🔍 デバッグコード
-        # #############################
-        # - name: 🔍Debug before file deference check
-        #   debug:
-        #     var: overwrite_items
-        #   # when:
-        #   #   - dest_file_stat.stat.exists == true
