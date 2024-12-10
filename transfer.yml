@@ -7,12 +7,12 @@
 
   vars:
     backup_dir: "/PF_NAS/UNYO/transfer_backups"
+    new_distribution_items: []
+    overwrite_items: []
 
   tasks:
     - name: Initialize new_distribution_items and overwrite_items
       set_fact:
-        new_distribution_items: []
-        overwrite_items: []
       delegate_to: localhost
       run_once: true
 
@@ -29,17 +29,14 @@
     - name: Show new_distribution_items
       debug:
         var: new_distribution_items
-      delegate_to: localhost
-      run_once: true
       when: new_distribution_items|length > 0
 
     - name: Confirm new file distribution globally
       pause:
-        prompt: "【新規配布】ファイル {{ new_distribution_items }} を配布しますか？(yes/no)"
+        prompt: "【新規配布】ファイルを配布しますか？(yes/no)"
       register: new_distribution_confirm_result
       delegate_to: localhost
       run_once: true
-      when: new_distribution_items|length > 0
 
     - name: Distribute new files after global confirmation
       copy:
@@ -53,8 +50,7 @@
         loop_var: item
       when:
         - new_distribution_items|length > 0
-        - new_distribution_confirm_result is defined
-        - new_distribution_confirm_result.results[ansible_loop.index0].user_input == 'yes'
+        - new_distribution_confirm_result.user_input == 'yes'
 
 
     #############################
@@ -64,16 +60,15 @@
       debug:
         var: overwrite_items
       delegate_to: localhost
-      run_once: true
       when: overwrite_items|length > 0
 
     - name: Confirm overwriting files globally
       pause:
-        prompt: "【上書き配布】ファイル {{ overwrite_itmes }} を上書きしますか？(yes/no)"
+        prompt: "【上書き配布】ファイルを上書きしますか？(yes/no)"
       register: overwrite_confirm_result
       delegate_to: localhost
       run_once: true
-      when: overwrite_items|length > 0
+
 
     - name: Overwrite files after global confirmation
       copy:
@@ -87,5 +82,4 @@
         loop_var: item
       when:
         - overwrite_items|length > 0
-        - overwrite_confirm_result is defined
-        - overwrite_confirm_result.results[ansible_loop.index0].user_input == 'yes'
+        - overwrite_confirm_result.user_input == 'yes'
