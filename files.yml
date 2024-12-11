@@ -1,0 +1,8 @@
+files_to_transfer:
+  - { host: "target01", src: "./sample1", dest: "/tmp/sample1", owner: "root", group: "root", mode: "0644" }
+  - { host: "target01", src: "./sample2", dest: "/tmp/sample2", owner: "ansible", group: "ansible", mode: "0755" }
+
+  - { host: "target02", src: "./sample1", dest: "/tmp/sample1", owner: "ansible", group: "ansible", mode: "0750" }
+  - { host: "target02", src: "./sample2", dest: "/tmp/sample2", mode: "0640" }
+
+  # - { host: "target03", src: "./sample2", dest: "/tmp/sample2", owner: "ansible", group: "ansible", mode: "0755" }
